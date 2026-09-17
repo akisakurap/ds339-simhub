@@ -18,9 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- DS339 プロトコル実装と SimHub クライアントは既存プロジェクトのソースをそのまま共有する -->
+    <!-- DS339 プロトコル実装は DS339Direct のソースをそのまま共有する -->
     <Compile Include="..\DS339Direct\Ms9132Device.cs" Link="Shared\Ms9132Device.cs" />
-    <Compile Include="..\SimHubAida64Bridge\SimHubPropertyClient.cs" Link="Shared\SimHubPropertyClient.cs" />
     <None Include="..\DS339Direct\native\libusb-1.0.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>libusb-1.0.dll</Link>

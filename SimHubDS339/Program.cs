@@ -36,7 +36,7 @@ Console.CancelKeyPress += (_, e) =>
     cts.Cancel();
 };
 
-using var client = new SimHubAida64Bridge.SimHubPropertyClient("127.0.0.1", 18082, Telemetry.SubscribedProperties);
+using var client = new SimHubPropertyClient("127.0.0.1", 18082, Telemetry.SubscribedProperties);
 var adapter = new SimHubPropertyClientAdapter(client);
 client.Start();
 

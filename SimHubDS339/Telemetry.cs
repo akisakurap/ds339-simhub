@@ -84,9 +84,9 @@ namespace SimHubDS339
     /// <summary>SimHubPropertyClient の文字列値を型付きで読むための薄いアダプタ。</summary>
     internal sealed class SimHubPropertyClientAdapter
     {
-        private readonly SimHubAida64Bridge.SimHubPropertyClient _client;
+        private readonly SimHubPropertyClient _client;
 
-        public SimHubPropertyClientAdapter(SimHubAida64Bridge.SimHubPropertyClient client)
+        public SimHubPropertyClientAdapter(SimHubPropertyClient client)
         {
             _client = client;
         }

@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace SimHubAida64Bridge
+namespace SimHubDS339
 {
     /// <summary>
     /// SimHub Property Server (https://github.com/pre-martin/SimHubPropertyServer) との

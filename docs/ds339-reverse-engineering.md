@@ -23,7 +23,7 @@ JONSBO のサブディスプレイ **DS339** に、レースシム用ツール *
 
 ### 2-2. AIDA64 経由
 
-AIDA64 は DS339 に公式対応している。そこで、SimHub の値を AIDA64 の External Applications (レジストリ経由の値取り込み) に書き込むブリッジを作った (`SimHubAida64Bridge`)。
+AIDA64 は DS339 に公式対応している。そこで、SimHub の値を AIDA64 の External Applications (レジストリ経由の値取り込み) に書き込むブリッジを作った (このツールは不要になったためリポジトリには含めていない。SimHub との通信部分は `SimHubDS339/SimHubPropertyClient.cs` に引き継いだ)。
 これは動作する。ただし AIDA64 が必要で、レイアウトの自由度や更新レートも AIDA64 に依存する。
 
 **そこで、DS339 を USB から直接制御する方針に切り替えた。**

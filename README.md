@@ -16,7 +16,6 @@ SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376
 |---|---|---|
 | [`SimHubDS339/`](SimHubDS339/) | **本命**。SimHub のデータをダッシュボードとして描画し、DS339 に送り続ける常駐アプリ | 動作確認済み |
 | [`DS339Direct/`](DS339Direct/) | DS339 の USB プロトコル実装 (`Ms9132Device.cs`) と、画像を送るテスト用 CLI | 動作確認済み |
-| [`SimHubAida64Bridge/`](SimHubAida64Bridge/) | SimHub の値を AIDA64 のレジストリ連携 (Import Values) に書き込む常駐ツール。SimHub クライアントは `SimHubDS339` でも共有 | 単体動作確認済み (AIDA64 表示は未検証) |
 | [`docs/`](docs/) | [プロトコル解析の記録](docs/ds339-reverse-engineering.md) | — |
 
 ## 必要なもの
