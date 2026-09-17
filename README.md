@@ -17,7 +17,6 @@ SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376
 | [`SimHubDS339/`](SimHubDS339/) | **本命**。SimHub のデータをダッシュボードとして描画し、DS339 に送り続ける常駐アプリ | 動作確認済み |
 | [`DS339Direct/`](DS339Direct/) | DS339 の USB プロトコル実装 (`Ms9132Device.cs`) と、画像を送るテスト用 CLI | 動作確認済み |
 | [`SimHubAida64Bridge/`](SimHubAida64Bridge/) | SimHub の値を AIDA64 のレジストリ連携 (Import Values) に書き込む常駐ツール。SimHub クライアントは `SimHubDS339` でも共有 | 単体動作確認済み (AIDA64 表示は未検証) |
-| [`InfoPanel.SimHubBridge/`](InfoPanel.SimHubBridge/) | InfoPanel 用プラグイン。InfoPanel が DS339 非対応と判明したため未使用 (参考として残置) | 読み込みのみ確認 |
 | [`docs/`](docs/) | [プロトコル解析の記録](docs/ds339-reverse-engineering.md) | — |
 
 ## 必要なもの
@@ -80,7 +79,5 @@ JONSBO-AIO に戻す場合は、Zadig でインターフェース 3 のドライ
 このリポジトリは **GNU General Public License v2.0** で公開します ([LICENSE](LICENSE))。
 
 `DS339Direct/Ms9132Device.cs` は MacroSilicon Technology Co., Ltd. の GPL-2.0 ドライバソースを参照・移植しており、これを組み込む `SimHubDS339` も含めて GPL-2.0 としています。
-
-例外として、[`InfoPanel.SimHubBridge/`](InfoPanel.SimHubBridge/) は GPL-3.0 の InfoPanel 向けプラグインのため **GPL-3.0** です ([InfoPanel.SimHubBridge/LICENSE](InfoPanel.SimHubBridge/LICENSE))。
 
 同梱・依存しているサードパーティのソフトウェアとそのライセンスは [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) を参照してください。

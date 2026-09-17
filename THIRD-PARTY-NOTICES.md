@@ -32,6 +32,5 @@
 | ソフトウェア | ライセンス | 用途 |
 |---|---|---|
 | [SimHub Property Server](https://github.com/pre-martin/SimHubPropertyServer) | LGPL-3.0 | TCP プロトコル (ポート 18082) でテレメトリを受信 |
-| [InfoPanel](https://github.com/habibrehmansg/infopanel) | GPL-3.0 | `InfoPanel.SimHubBridge` のビルド時に `InfoPanel.Plugins` を参照 (リポジトリには含まない) |
 | SimHub | プロプライエタリ | テレメトリの提供元 |
 | JONSBO-AIO | プロプライエタリ | プロトコル解析のため USB 通信を観察したのみ。バイナリ・画像・キャプチャデータは含まない |

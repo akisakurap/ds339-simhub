@@ -18,7 +18,7 @@ JONSBO のサブディスプレイ **DS339** に、レースシム用ツール *
 
 ### 2-1. InfoPanel 経由
 
-最初はオープンソースのパネル表示ツール InfoPanel 用のプラグインを作り、SimHub の値を流し込もうとした (`InfoPanel.SimHubBridge`)。
+最初はオープンソースのパネル表示ツール InfoPanel 用のプラグインを作り、SimHub の値を流し込もうとした (このプラグインは不要になったためリポジトリには含めていない)。
 しかし InfoPanel が対応しているのは BeadaPanel や Turing 系のパネルで、**MacroSilicon のチップを載せた DS339 には描画できない**ことがわかった。
 
 ### 2-2. AIDA64 経由
