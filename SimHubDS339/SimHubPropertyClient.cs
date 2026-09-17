@@ -85,7 +85,7 @@ namespace SimHubDS339
                     _writer = writer;
 
                     var greeting = await reader.ReadLineAsync().ConfigureAwait(false);
-                    Console.WriteLine($"[SimHubBridge] Connected to SimHub Property Server: {greeting}");
+                    Console.WriteLine($"[SimHub] Connected to SimHub Property Server: {greeting}");
 
                     ConnectionStateChanged?.Invoke(true);
 
@@ -107,7 +107,7 @@ namespace SimHubDS339
                 }
                 catch (Exception ex) when (!token.IsCancellationRequested)
                 {
-                    Console.WriteLine($"[SimHubBridge][WARN] SimHub connection lost/failed: {ex.Message}. Retrying in 3s...");
+                    Console.WriteLine($"[SimHub][WARN] SimHub connection lost/failed: {ex.Message}. Retrying in 3s...");
                 }
                 finally
                 {
