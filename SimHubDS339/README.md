@@ -23,7 +23,7 @@ dotnet build -c Release
 ```
 
 ```bash
-D:\PG\DS339\SimHubDS339\bin\Release\net8.0-windows\SimHubDS339.exe
+bin\Release\net8.0-windows\SimHubDS339.exe
 ```
 
 | オプション | 内容 |
