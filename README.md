@@ -36,18 +36,40 @@ SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376
 3. **JONSBO-AIO / AIDA64 の DS339 出力を止める**
    同じデバイスを取り合うため、同時には使えません。
 
-4. **ビルドして実行**
+4. **ビルド**
 
    ```bash
    cd SimHubDS339
    dotnet build -c Release
    ```
 
-   ```bash
-   SimHubDS339\bin\Release\net8.0-windows\SimHubDS339.exe
-   ```
+## 使い方
 
-   SimHub 未接続・ゲーム未起動の間は待機画面 (時計など)、ゲームが始まるとレース画面に切り替わります。オプション (`--fps`、`--demo`、`--preview` など) は [SimHubDS339/README.md](SimHubDS339/README.md) を参照してください。
+### 起動
+
+次の 2 つを起動します。順番はどちらが先でも構いません。
+
+1. SimHub
+2. `SimHubDS339\bin\Release\net8.0-windows\SimHubDS339.exe` (ダブルクリック)
+
+黒いコンソールウィンドウが開けば動作中です。タスクトレイにアイコンは出ません。
+
+- SimHub 未接続・ゲーム未起動の間は **待機画面** (時計・日付・接続状態)、ゲームで走り始めると **レース画面** に自動で切り替わります
+- SimHub やゲームが後から起動しても、自動で接続されます
+- SimHub だけを起動しても表示されません。`SimHubDS339.exe` も必ず起動してください
+- オプション (`--fps`、`--demo`、`--preview` など) は [SimHubDS339/README.md](SimHubDS339/README.md) を参照してください
+
+### 終了
+
+- **推奨**: コンソールウィンドウを選んで `Ctrl+C`。`Stopping...` と表示され、USB を閉じてから終了します
+- ウィンドウを × で閉じても終了します (後始末なしの強制終了ですが、次回起動時に初期化し直すので問題ありません)
+- 終了後も DS339 には **最後の画面が静止したまま残ります**。消したい場合は DS339 の USB を抜き差ししてください
+
+### 注意
+
+- JONSBO-AIO と同時には使えません (DS339 を取り合います)
+- `SimHubDS339.exe` を 2 つ同時に起動しないでください
+- 動作確認済みのゲーム: Le Mans Ultimate (LMU)
 
 ## DS339 プロトコルの要点
 
