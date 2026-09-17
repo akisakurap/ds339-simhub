@@ -1,0 +1,12 @@
+# build output
+bin/
+obj/
+dist/
+*.user
+.vs/
+
+# large / captured data (kept locally)
+*.pcap
+*.pcapng
+bulk_frame_data.bin
+*.rgb

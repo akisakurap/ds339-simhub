@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DS339Direct</AssemblyName>
+    <RootNamespace>DS339Direct</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LibUsbDotNet" Version="3.0.224" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- libusb NuGet パッケージが net8.0 と互換性がないため、libusb-1.0.dll (x64) を
+         手動で同梱している。取得元: https://www.nuget.org/packages/libusb/1.0.21 -->
+    <None Include="native\libusb-1.0.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>libusb-1.0.dll</Link>
+    </None>
+  </ItemGroup>
+
+</Project>
