@@ -3,6 +3,9 @@
 SimHub のテレメトリをダッシュボードとして描画し、DS339 (JONSBO 製サブディスプレイ) に **USB で直接** 表示する常駐ツールです。
 AIDA64 や JONSBO 公式アプリは不要です。
 
+> [!WARNING]
+> 非公式ツールです。**使用は自己責任** でお願いします ([免責事項](../README.md#免責事項))。
+
 ```
 SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376 描画) → libusb → DS339
 ```
