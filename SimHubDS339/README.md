@@ -16,7 +16,7 @@ SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376
 1. **SimHub Property Server プラグイン**: `PropertyServer.dll` (https://github.com/pre-martin/SimHubPropertyServer) を SimHub に導入し、有効にしておく (ポート 18082)。
 2. **DS339 のドライバ**: インターフェース 3 (`MI_03`) を Zadig で WinUSB に置き換えておく (導入済み)。
 3. **JONSBO-AIO / AIDA64 の DS339 出力は停止しておく**。同じデバイスを取り合うため同時には使えません。
-4. **(任意) CPU 温度を表示する場合**: [PawnIO](https://pawnio.eu/) ドライバをインストールし、`SimHubDS339.exe` を **管理者として実行** する ([CPU 温度について](#cpu-温度について))。
+4. **(任意) CPU 温度を表示する場合**: [PawnIO](https://pawnio.eu/) ドライバをインストールし、SimHubDS339 を **管理者として起動** する ([CPU 温度について](#cpu-温度について))。
 
 ## ビルドと実行
 
@@ -63,6 +63,16 @@ bin\Release\net8.0-windows\SimHubDS339.exe
 - **設定ファイル**: `%APPDATA%\SimHubDS339\settings.json`
 - **ログファイル**: `%LOCALAPPDATA%\SimHubDS339\SimHubDS339.log` (トレイメニューの「ログを開く」から既定のエディタで開けます。サイズが 1MB を超えると起動時に自動で `.old.log` にリネーム・ローテーションされます)
 
+### 自動起動
+
+設定ウィンドウ (トレイメニュー →「設定...」) から、Windows 起動時の自動起動を設定できます。
+
+- **自動起動しない**: 自動起動の登録を解除します。
+- **Windows 起動時に起動する**: 現在のユーザーのレジストリ (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`) に `SimHubDS339` を登録し、通常権限で自動起動します。
+- **Windows 起動時に管理者として起動する (CPU 温度を表示する場合)**: Windows タスク スケジューラにタスク `SimHubDS339` を最上位の特権 (`HighestAvailable`) で登録し、ログオン時に管理者権限で自動起動します (設定時に UAC の確認が表示されます)。
+
+どちらも `SimHubDS339.exe` のフルパスを登録します。exe を別のフォルダに移動した場合は、設定ウィンドウで自動起動を設定し直してください。
+
 ## 画面
 
 - **PC ステータス画面** (SimHub 未接続、またはゲーム未起動): 時計・日付・SimHub の接続状態、CPU (使用率・温度・クロック)、GPU (使用率・温度・VRAM)、メモリ (使用率・使用量)、直近 60 秒の使用率グラフ、ネットワークの送受信速度
@@ -91,16 +101,6 @@ CPU の温度は、CPU のレジスタを読むためにカーネルドライバ
 - **画素データに 0xFF を含めてはならない** (マーカー扱いされ、転送が極端に遅くなり表示が乱れる)。255 は 254 に丸める
 - 公式アプリ同様、xdata `0x0032` を 500ms 周期で読むハートビートを行う
 - 送信失敗や USB エラー時は 3 秒後に自動で再接続・再初期化する
-
-## 自動起動設定
-
-設定ウィンドウ (トレイメニュー →「設定...」) から、Windows 起動時の自動起動を設定できます。
-
-- **自動起動しない**: 自動起動の登録を解除します。
-- **Windows 起動時に起動する**: 現在のユーザーのレジストリ (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`) に `SimHubDS339` を登録し、通常権限で自動起動します。
-- **Windows 起動時に管理者として起動する (CPU 温度を表示する場合)**: Windows タスク スケジューラにタスク `SimHubDS339` を最上位の特権 (`HighestAvailable`) で登録し、ログオン時に管理者権限で自動起動します (設定時に UAC の確認が表示されます)。
-
-どちらも `SimHubDS339.exe` のフルパスを登録します。exe を別のフォルダに移動した場合は、設定ウィンドウで自動起動を設定し直してください。
 
 ## 元に戻す
 

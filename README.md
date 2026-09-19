@@ -29,6 +29,7 @@ SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376
 - Windows 10 以降、.NET 8 SDK
 - [SimHub](https://www.simhubdash.com/) と [SimHub Property Server](https://github.com/pre-martin/SimHubPropertyServer) プラグイン (`PropertyServer.dll`、ポート 18082)
 - [Zadig](https://zadig.akeo.ie/) — DS339 のドライバ差し替え用
+- (任意) [PawnIO](https://pawnio.eu/) — CPU 温度を表示する場合のみ。管理者としての起動も必要
 
 ## セットアップ
 
@@ -70,6 +71,8 @@ SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376
 
 タスクトレイのアイコンをダブルクリックするか、右クリック →「設定...」を開くと、次の設定を変更できます。
 
+![設定ウィンドウ](docs/images/settings.png)
+
 - Windows 起動時の自動起動 (しない / 通常権限で起動 / 管理者として起動)
 - 送信レート (FPS)
 - SimHub Property Server の接続先 (ホスト / ポート)
@@ -88,6 +91,17 @@ SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376
 - JONSBO-AIO と同時には使えません (DS339 を取り合います)
 - 二重起動は自動で防止されます (すでに起動している場合はメッセージが表示されて終了します)
 - 動作確認済みのゲーム: Le Mans Ultimate (LMU)
+
+## 更新履歴
+
+- **2026-09-20**
+  - タスクトレイ常駐アプリになりました。起動してもコンソールウィンドウは開かず、トレイアイコンから設定・ログ・終了を操作します (従来の動作は `--console`)
+  - 設定ウィンドウを追加しました。Windows 起動時の自動起動 (しない / 通常権限 / 管理者)、FPS、SimHub の接続先を変更できます
+  - トレイメニューに「管理者として再起動」を追加しました (CPU 温度の表示用)
+  - 二重起動を自動で防ぐようにしました
+  - ゲーム未起動時の待機画面を、時計だけの画面から **PC ステータス画面** (CPU/GPU/メモリの使用率・温度・クロック、VRAM、直近 60 秒のグラフ、ネットワーク速度) に変更しました
+  - PC の値の取得に LibreHardwareMonitorLib を使います。CPU 温度には PawnIO ドライバと管理者権限が必要です。CPU クロックはどちらもなくても表示されます
+  - `--sensors` オプションを追加しました (検出したセンサーの一覧表示)
 
 ## DS339 プロトコルの要点
 
