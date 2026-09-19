@@ -1,6 +1,7 @@
 # ds339-simhub
 
 JONSBO 製 3.39 インチサブディスプレイ **DS339** に、SimHub のテレメトリ (速度・ギア・RPM・ラップタイムなど) を **USB で直接** 表示するためのツール群です。
+ゲームを起動していないあいだは PC ステータス (CPU/GPU/メモリの使用率・温度など) を表示します。
 
 DS339 は MacroSilicon MS912C (USB VID `345F` / PID `9132`) を搭載した独自プロトコルのデバイスで、InfoPanel は非対応、AIDA64 は有償です。そこで純正アプリ JONSBO-AIO の USB 通信をキャプチャしてプロトコルを解析し、自前で描画・転送できるようにしました。
 
@@ -8,6 +9,8 @@ DS339 は MacroSilicon MS912C (USB VID `345F` / PID `9132`) を搭載した独�
 > 非公式ツールです。**使用は自己責任** でお願いします。詳しくは [免責事項](#免責事項) を参照してください。
 
 ![レース画面](docs/images/race_normal.png)
+
+![PC ステータス画面](docs/images/pc_waiting.png)
 
 ```
 SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376 描画) → libusb → DS339
@@ -55,23 +58,35 @@ SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376
 1. SimHub
 2. `SimHubDS339\bin\Release\net8.0-windows\SimHubDS339.exe` (ダブルクリック)
 
-黒いコンソールウィンドウが開けば動作中です。タスクトレイにアイコンは出ません。
+起動するとタスクトレイにアイコンが出ます (コンソールウィンドウは出ません)。
 
-- SimHub 未接続・ゲーム未起動の間は **待機画面** (時計・日付・接続状態)、ゲームで走り始めると **レース画面** に自動で切り替わります
+- SimHub 未接続・ゲーム未起動の間は **PC ステータス画面**、ゲームで走り始めると **レース画面** に自動で切り替わります
 - SimHub やゲームが後から起動しても、自動で接続されます
 - SimHub だけを起動しても表示されません。`SimHubDS339.exe` も必ず起動してください
-- オプション (`--fps`、`--demo`、`--preview` など) は [SimHubDS339/README.md](SimHubDS339/README.md) を参照してください
+- CPU 温度を表示するには PawnIO + 管理者起動が必要です (詳細は [SimHubDS339/README.md](SimHubDS339/README.md#cpu-温度について) を参照)
+- オプション (`--fps`、`--demo`、`--preview`、`--console` など) は [SimHubDS339/README.md](SimHubDS339/README.md) を参照してください
+
+### 設定
+
+タスクトレイのアイコンをダブルクリックするか、右クリック →「設定...」を開くと、次の設定を変更できます。
+
+- Windows 起動時の自動起動 (しない / 通常権限で起動 / 管理者として起動)
+- 送信レート (FPS)
+- SimHub Property Server の接続先 (ホスト / ポート)
+
+設定ファイルとログファイルの場所:
+- 設定: `%APPDATA%\SimHubDS339\settings.json`
+- ログ: `%LOCALAPPDATA%\SimHubDS339\SimHubDS339.log` (トレイメニューの「ログを開く」からも確認可能)
 
 ### 終了
 
-- **推奨**: コンソールウィンドウを選んで `Ctrl+C`。`Stopping...` と表示され、USB を閉じてから終了します
-- ウィンドウを × で閉じても終了します (後始末なしの強制終了ですが、次回起動時に初期化し直すので問題ありません)
+- タスクトレイアイコンを右クリック →「終了」をクリックします
 - 終了後も DS339 には **最後の画面が静止したまま残ります**。消したい場合は DS339 の USB を抜き差ししてください
 
 ### 使用上の注意
 
 - JONSBO-AIO と同時には使えません (DS339 を取り合います)
-- `SimHubDS339.exe` を 2 つ同時に起動しないでください
+- 二重起動は自動で防止されます (すでに起動している場合はメッセージが表示されて終了します)
 - 動作確認済みのゲーム: Le Mans Ultimate (LMU)
 
 ## DS339 プロトコルの要点
