@@ -8,9 +8,17 @@ DS339 は MacroSilicon MS912C (USB VID `345F` / PID `9132`) を搭載した独�
 > [!WARNING]
 > 非公式ツールです。**使用は自己責任** でお願いします。詳しくは [免責事項](#免責事項) を参照してください。
 
-![レース画面](docs/images/race_normal.png)
+### レース画面 (全 5 ページ)
 
-![PC ステータス画面](docs/images/pc_waiting.png)
+グローバルホットキー (既定: `Ctrl+Alt+Shift+PageDown` / `PageUp`) やタスクトレイメニューでページを切り替えられます。
+
+| 1. MAIN (メイン) | 2. TYRES (タイヤ・ブレーキ) |
+|---|---|
+| ![MAIN](docs/images/race_normal.png) | ![TYRES](docs/images/race_tyres.png) |
+| **3. FUEL (燃料・スティント)** | **4. DELTA (デルタ・ラップ)** |
+| ![FUEL](docs/images/race_fuel.png) | ![DELTA](docs/images/race_delta.png) |
+| **5. SESSION (セッション・環境)** | **待機時: PC ステータス画面** |
+| ![SESSION](docs/images/race_session.png) | ![PC ステータス](docs/images/pc_waiting.png) |
 
 ```
 SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376 描画) → libusb → DS339
@@ -65,7 +73,17 @@ SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376
 - SimHub やゲームが後から起動しても、自動で接続されます
 - SimHub だけを起動しても表示されません。`SimHubDS339.exe` も必ず起動してください
 - CPU 温度を表示するには PawnIO + 管理者起動が必要です (詳細は [SimHubDS339/README.md](SimHubDS339/README.md#cpu-温度について) を参照)
-- オプション (`--fps`、`--demo`、`--preview`、`--console` など) は [SimHubDS339/README.md](SimHubDS339/README.md) を参照してください
+- オプション (`--fps`、`--demo`、`--preview`、`--probe`、`--console` など) は [SimHubDS339/README.md](SimHubDS339/README.md) を参照してください
+
+### レース画面のページ切り替え
+
+レース中 (`SimHubConnected && GameRunning`) は、グローバルホットキーまたはトレイメニューで画面を切り替えられます。
+
+- **次のページ**: `Ctrl + Alt + Shift + PageDown` (既定)
+- **前のページ**: `Ctrl + Alt + Shift + PageUp` (既定)
+- **タスクトレイメニュー**: アイコン右クリック →「次のページ」「前のページ」
+- ページ切替直後の 1.5 秒間は中央上部にページ名がオーバーレイ表示され、画面最下部に有効ページ数と現在位置を示すドットインジケータが表示されます。
+- ハンドルコントローラー等のボタンで切り替えたい場合は、SimHub の「Controls and events」機能でステアリングのボタンにキーボードエミュレーション (既定の `Ctrl+Alt+Shift+PageDown` 等) を割り当ててください。
 
 ### 設定
 
@@ -76,6 +94,7 @@ SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376
 - Windows 起動時の自動起動 (しない / 通常権限で起動 / 管理者として起動)
 - 送信レート (FPS)
 - SimHub Property Server の接続先 (ホスト / ポート)
+- レース画面のページ設定 (各ページの有効/無効化、切替ホットキーの変更)
 
 設定ファイルとログファイルの場所:
 - 設定: `%APPDATA%\SimHubDS339\settings.json`
@@ -95,6 +114,12 @@ SimHub → [Property Server plugin, TCP:18082] → SimHubDS339 (GDI+ で 960x376
 ## 更新履歴
 
 - **2026-09-20**
+  - レース画面に 4 つの追加ページ (**TYRES**: タイヤ/ブレーキ、**FUEL**: 燃料/スティント、**DELTA**: デルタ/ラップ/ギャップ、**SESSION**: セッション/環境/車両設定) を追加し、全 5 ページ構成に拡張しました
+  - グローバルホットキー (`Ctrl+Alt+Shift+PageDown` / `PageUp`) およびトレイメニューによるレース画面のページ切替に対応しました
+  - 設定ウィンドウに「レース画面のページ設定」を追加し、各ページの ON/OFF 切り替えとホットキーのカスタマイズに対応しました
+  - ページ切替時の中央上部オーバーレイ表示 (1.5秒) と、最下部のページインジケータを追加しました
+  - ピットアウトを検知して今スティントの周回数・経過時間・消費燃料・平均燃費を追跡する `StintTracker` を実装しました
+  - SimHub Property Server から候補プロパティ一覧を取得する `--probe` オプションを追加しました
   - タスクトレイ常駐アプリになりました。起動してもコンソールウィンドウは開かず、トレイアイコンから設定・ログ・終了を操作します (従来の動作は `--console`)
   - 設定ウィンドウを追加しました。Windows 起動時の自動起動 (しない / 通常権限 / 管理者)、FPS、SimHub の接続先を変更できます
   - トレイメニューに「管理者として再起動」を追加しました (CPU 温度の表示用)

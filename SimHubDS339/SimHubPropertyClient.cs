@@ -32,6 +32,7 @@ namespace SimHubDS339
         private Task? _readLoopTask;
 
         public ConcurrentDictionary<string, string?> Values { get; } = new();
+        public ConcurrentDictionary<string, string> Types { get; } = new();
 
         public event Action<bool>? ConnectionStateChanged;
 
@@ -66,7 +67,14 @@ namespace SimHubDS339
             }
 
             _tcpClient?.Close();
-            _readLoopTask?.Wait(TimeSpan.FromSeconds(2));
+            try
+            {
+                _readLoopTask?.Wait(TimeSpan.FromSeconds(2));
+            }
+            catch (AggregateException)
+            {
+                // Close で読み取り中のソケットが中断された例外 (停止要求によるもの) は無視してよい
+            }
         }
 
         private async Task ConnectAndReadLoopAsync(CancellationToken token)
@@ -148,8 +156,10 @@ namespace SimHubDS339
             var afterName = rest.Substring(firstSpace + 1);
             var secondSpace = afterName.IndexOf(' ');
             if (secondSpace < 0) return;
+            var type = afterName.Substring(0, secondSpace);
             var value = afterName.Substring(secondSpace + 1);
 
+            Types[name] = type;
             Values[name] = value == "(null)" ? null : value;
         }
 

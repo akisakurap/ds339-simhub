@@ -56,6 +56,13 @@ namespace SimHubDS339
                 return;
             }
 
+            // 3. --probe モード
+            if (args.Contains("--probe"))
+            {
+                RunProbe();
+                return;
+            }
+
             // --- 引数の解析 ---
             int? cmdFps = null;
             int statsSec = 60;
@@ -216,6 +223,65 @@ namespace SimHubDS339
             {
                 // リダイレクト失敗時は無視
             }
+        }
+
+        /// <summary>
+        /// --probe オプション: SimHub Property Server に接続して候補プロパティを購読し、一覧を出力する。
+        /// </summary>
+        private static void RunProbe()
+        {
+            var settings = AppSettings.Load();
+            Console.WriteLine("SimHub プロパティ プローブを開始します...");
+            Console.WriteLine($"接続先: {settings.SimHubHost}:{settings.SimHubPort}");
+            Console.WriteLine($"購読プロパティ候補数: {SimHubProperties.AllCandidateProperties.Length}");
+
+            using var client = new SimHubPropertyClient(settings.SimHubHost, settings.SimHubPort, SimHubProperties.AllCandidateProperties);
+            client.Start();
+
+            // 接続待機 (最大 2 秒)
+            int waitCount = 0;
+            while (!client.IsConnected && waitCount < 20)
+            {
+                Thread.Sleep(100);
+                waitCount++;
+            }
+
+            if (!client.IsConnected)
+            {
+                Console.WriteLine($"[エラー] SimHub Property Server ({settings.SimHubHost}:{settings.SimHubPort}) に接続できませんでした。");
+                Console.WriteLine("SimHub が起動しているか、Property Server プラグイン (TCP 18082) が有効になっているか確認してください。");
+                client.Stop();
+                return;
+            }
+
+            Console.WriteLine("接続成功。5 秒間プロパティ値を受信待機します...");
+            Thread.Sleep(5000);
+
+            Console.WriteLine();
+            Console.WriteLine("--------------------------------------------------");
+            Console.WriteLine(" SimHub 候補プロパティ一覧 (プローブ結果)");
+            Console.WriteLine("--------------------------------------------------");
+
+            int receivedCount = 0;
+            foreach (var prop in SimHubProperties.AllCandidateProperties)
+            {
+                bool hasVal = client.Values.TryGetValue(prop, out var val) && val != null;
+                client.Types.TryGetValue(prop, out var type);
+
+                if (hasVal)
+                {
+                    receivedCount++;
+                    Console.WriteLine($"[OK] {prop,-55} [{type ?? "unknown"}] = {val}");
+                }
+                else
+                {
+                    Console.WriteLine($"[--] {prop,-55} (no value)");
+                }
+            }
+
+            Console.WriteLine("--------------------------------------------------");
+            Console.WriteLine($"合計: {SimHubProperties.AllCandidateProperties.Length} 件中 {receivedCount} 件を受信しました。");
+            client.Stop();
         }
     }
 }

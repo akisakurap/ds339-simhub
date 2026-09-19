@@ -24,6 +24,10 @@ namespace SimHubDS339
         private int _fps = 10;
         private int _simHubPort = 18082;
         private string _simHubHost = "127.0.0.1";
+        private string _nextPageHotkey = HotkeyBinding.DefaultNext;
+        private string _prevPageHotkey = HotkeyBinding.DefaultPrev;
+        private List<string> _enabledPages = new() { "Main", "Tyres", "Fuel", "Delta", "Session" };
+        private string _currentPage = "Main";
 
         /// <summary>送信レート (FPS, 1..20)</summary>
         [JsonPropertyName("fps")]
@@ -47,6 +51,77 @@ namespace SimHubDS339
         {
             get => _simHubPort;
             set => _simHubPort = Math.Clamp(value, 1, 65535);
+        }
+
+        /// <summary>次のページ切り替えホットキー文字列 (例: "Ctrl+Alt+Shift+PageDown")</summary>
+        [JsonPropertyName("nextPageHotkey")]
+        public string NextPageHotkey
+        {
+            get => _nextPageHotkey;
+            set => _nextPageHotkey = string.IsNullOrWhiteSpace(value) ? HotkeyBinding.DefaultNext : value.Trim();
+        }
+
+        /// <summary>前のページ切り替えホットキー文字列 (例: "Ctrl+Alt+Shift+PageUp")</summary>
+        [JsonPropertyName("prevPageHotkey")]
+        public string PrevPageHotkey
+        {
+            get => _prevPageHotkey;
+            set => _prevPageHotkey = string.IsNullOrWhiteSpace(value) ? HotkeyBinding.DefaultPrev : value.Trim();
+        }
+
+        /// <summary>有効なレース画面ページのリスト (Main は常に有効)</summary>
+        [JsonPropertyName("enabledPages")]
+        public List<string> EnabledPages
+        {
+            get => _enabledPages;
+            set
+            {
+                var list = value?.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList() ?? new List<string>();
+                if (!list.Contains("Main", StringComparer.OrdinalIgnoreCase))
+                {
+                    list.Insert(0, "Main");
+                }
+                _enabledPages = list;
+            }
+        }
+
+        /// <summary>現在選択されているレース画面ページ名</summary>
+        [JsonPropertyName("currentPage")]
+        public string CurrentPage
+        {
+            get => _currentPage;
+            set => _currentPage = string.IsNullOrWhiteSpace(value) ? "Main" : value.Trim();
+        }
+
+        /// <summary>
+        /// 有効な RacePage 列挙値のリストを取得する。
+        /// </summary>
+        public List<RacePage> GetEnabledRacePages()
+        {
+            var result = new HashSet<RacePage> { RacePage.Main };
+            foreach (var name in _enabledPages)
+            {
+                if (Enum.TryParse<RacePage>(name, true, out var p))
+                {
+                    result.Add(p);
+                }
+            }
+            return Enum.GetValues(typeof(RacePage))
+                .Cast<RacePage>()
+                .Where(result.Contains)
+                .ToList();
+        }
+
+        /// <summary>
+        /// 現在保存されている RacePage 列挙値を取得する。
+        /// </summary>
+        public RacePage GetCurrentRacePage()
+        {
+            if (Enum.TryParse<RacePage>(_currentPage, true, out var p))
+            {
+                return p;
+            }
+            return RacePage.Main;
         }
 
         /// <summary>

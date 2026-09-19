@@ -1,9 +1,11 @@
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -12,7 +14,7 @@ namespace SimHubDS339
 {
     /// <summary>
     /// タスクトレイ常駐アプリケーションのコンテキストクラス。
-    /// NotifyIcon、右クリックメニュー、ステータス更新タイマー、設定ウィンドウの制御を行う。
+    /// NotifyIcon、右クリックメニュー、グローバルホットキー、ステータス更新タイマー、設定ウィンドウの制御を行う。
     /// </summary>
     internal sealed class TrayApp : ApplicationContext
     {
@@ -27,12 +29,15 @@ namespace SimHubDS339
         private readonly ContextMenuStrip _contextMenu;
         private readonly ToolStripMenuItem _menuItemDsStatus;
         private readonly ToolStripMenuItem _menuItemShStatus;
+        private readonly ToolStripMenuItem _menuItemNextPage;
+        private readonly ToolStripMenuItem _menuItemPrevPage;
         private readonly ToolStripMenuItem _menuItemSettings;
         private readonly ToolStripMenuItem _menuItemRestartAdmin;
         private readonly ToolStripMenuItem _menuItemOpenLog;
         private readonly ToolStripMenuItem _menuItemExit;
         private readonly System.Windows.Forms.Timer _updateTimer;
 
+        private readonly HotkeyManager _hotkeyManager;
         private IntPtr _hIcon = IntPtr.Zero;
         private SettingsForm? _settingsForm;
         private bool _isExiting;
@@ -43,6 +48,11 @@ namespace SimHubDS339
             _settings = settings;
             _onReleaseMutex = onReleaseMutex;
 
+            // グローバルホットキーマネージャーの作成
+            _hotkeyManager = new HotkeyManager();
+            _hotkeyManager.NextPageTriggered += () => _service.NextPage();
+            _hotkeyManager.PrevPageTriggered += () => _service.PreviousPage();
+
             // コンテキストメニューの構築
             _contextMenu = new ContextMenuStrip();
 
@@ -50,25 +60,32 @@ namespace SimHubDS339
             _menuItemDsStatus = new ToolStripMenuItem("DS339: 確認中...") { Enabled = false };
             _menuItemShStatus = new ToolStripMenuItem("SimHub: 確認中...") { Enabled = false };
 
-            // 2. 設定 (太字・既定項目)
+            // 2. ページ切り替え項目
+            _menuItemNextPage = new ToolStripMenuItem("次のページ");
+            _menuItemNextPage.Click += (_, _) => _service.NextPage();
+
+            _menuItemPrevPage = new ToolStripMenuItem("前のページ");
+            _menuItemPrevPage.Click += (_, _) => _service.PreviousPage();
+
+            // 3. 設定 (太字・既定項目)
             _menuItemSettings = new ToolStripMenuItem("設定...")
             {
                 Font = new Font(_contextMenu.Font, FontStyle.Bold)
             };
             _menuItemSettings.Click += (_, _) => ShowSettings();
 
-            // 3. 管理者として再起動 (非管理者のときのみ表示)
+            // 4. 管理者として再起動 (非管理者のときのみ表示)
             _menuItemRestartAdmin = new ToolStripMenuItem("管理者として再起動 (CPU 温度を表示)")
             {
                 Visible = !PcStatsSampler.IsElevated
             };
             _menuItemRestartAdmin.Click += (_, _) => RestartAsAdmin();
 
-            // 4. ログを開く
+            // 5. ログを開く
             _menuItemOpenLog = new ToolStripMenuItem("ログを開く");
             _menuItemOpenLog.Click += (_, _) => Log.OpenLogFile();
 
-            // 5. 終了
+            // 6. 終了
             _menuItemExit = new ToolStripMenuItem("終了");
             _menuItemExit.Click += (_, _) => ExitApplication();
 
@@ -77,6 +94,9 @@ namespace SimHubDS339
             {
                 _menuItemDsStatus,
                 _menuItemShStatus,
+                new ToolStripSeparator(),
+                _menuItemNextPage,
+                _menuItemPrevPage,
                 new ToolStripSeparator(),
                 _menuItemSettings,
                 _menuItemRestartAdmin,
@@ -104,6 +124,9 @@ namespace SimHubDS339
                 }
             };
 
+            // ホットキーの登録
+            RegisterHotkeysFromSettings();
+
             // 状態更新タイマー (2 秒間隔)
             _updateTimer = new System.Windows.Forms.Timer { Interval = 2000 };
             _updateTimer.Tick += (_, _) => UpdateStatus();
@@ -115,6 +138,54 @@ namespace SimHubDS339
             // OS のログオフ・シャットダウン時の終了ハンドラ登録
             SystemEvents.SessionEnding += OnSessionEnding;
             Application.ApplicationExit += OnApplicationExit;
+        }
+
+        /// <summary>
+        /// 設定からホットキーを読み込み、グローバルホットキーとして登録する。
+        /// </summary>
+        private void RegisterHotkeysFromSettings()
+        {
+            if (!HotkeyBinding.TryParse(_settings.NextPageHotkey, out var next))
+            {
+                HotkeyBinding.TryParse(HotkeyBinding.DefaultNext, out next);
+            }
+            if (!HotkeyBinding.TryParse(_settings.PrevPageHotkey, out var prev))
+            {
+                HotkeyBinding.TryParse(HotkeyBinding.DefaultPrev, out prev);
+            }
+
+            UpdateMenuHotkeyTexts(next!, prev!);
+
+            if (!_hotkeyManager.Register(next!, prev!, out var errorMessage))
+            {
+                if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    Console.WriteLine($"[Hotkey] {errorMessage}");
+                    _notifyIcon.ShowBalloonTip(5000, "ホットキー登録エラー", errorMessage, ToolTipIcon.Warning);
+                }
+            }
+        }
+
+        /// <summary>
+        /// メニュー項目のテキストにショートカットキー文字列を反映する。
+        /// </summary>
+        private void UpdateMenuHotkeyTexts(HotkeyBinding next, HotkeyBinding prev)
+        {
+            _menuItemNextPage.ShortcutKeyDisplayString = next.ToString();
+            _menuItemPrevPage.ShortcutKeyDisplayString = prev.ToString();
+        }
+
+        /// <summary>
+        /// 設定ウィンドウから呼ばれるホットキー再登録デリゲート。
+        /// </summary>
+        private string? OnRegisterHotkeys(HotkeyBinding next, HotkeyBinding prev)
+        {
+            if (!_hotkeyManager.Register(next, prev, out var err))
+            {
+                return err;
+            }
+            UpdateMenuHotkeyTexts(next, prev);
+            return null;
         }
 
         /// <summary>
@@ -130,7 +201,7 @@ namespace SimHubDS339
                 g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
                 g.Clear(Color.Transparent);
 
-                // 背景: 角丸四角形 (DashboardRenderer の Accent 色: Color.FromArgb(40, 210, 150))
+                // 背景: 角丸四角形 (Accent 色)
                 var rect = new RectangleF(1, 1, size - 2, size - 2);
                 using var brush = new SolidBrush(Color.FromArgb(40, 210, 150));
                 using var path = CreateRoundedRectanglePath(rect, 7f);
@@ -151,9 +222,6 @@ namespace SimHubDS339
             return Icon.FromHandle(_hIcon);
         }
 
-        /// <summary>
-        /// 角丸四角形の GraphicsPath を作成する。
-        /// </summary>
         private static GraphicsPath CreateRoundedRectanglePath(RectangleF r, float radius)
         {
             var path = new GraphicsPath();
@@ -166,9 +234,6 @@ namespace SimHubDS339
             return path;
         }
 
-        /// <summary>
-        /// トレイアイコンのツールチップおよびメニュー項目の状態文字列を更新する。
-        /// </summary>
         private void UpdateStatus()
         {
             bool dsConnected = _service.DeviceConnected;
@@ -176,7 +241,6 @@ namespace SimHubDS339
             bool gameRunning = _service.GameRunning;
             string? gameName = _service.GameName;
 
-            // メニュー項目の更新
             _menuItemDsStatus.Text = $"DS339: {(dsConnected ? "接続中" : "未接続")}";
 
             string simHubStateText;
@@ -198,7 +262,6 @@ namespace SimHubDS339
             }
             _menuItemShStatus.Text = $"SimHub: {simHubStateText}";
 
-            // ツールチップの更新 (最大 63 文字制限を考慮)
             string tip = $"SimHubDS339 - DS339: {(dsConnected ? "接続中" : "未接続")} / SimHub: {(shConnected ? "接続中" : "未接続")}";
             if (tip.Length > 63)
             {
@@ -207,9 +270,6 @@ namespace SimHubDS339
             _notifyIcon.Text = tip;
         }
 
-        /// <summary>
-        /// 設定ウィンドウを表示する (すでに開いている場合は前面に出す)。
-        /// </summary>
         private void ShowSettings()
         {
             if (_settingsForm != null && !_settingsForm.IsDisposed)
@@ -223,14 +283,11 @@ namespace SimHubDS339
                 return;
             }
 
-            _settingsForm = new SettingsForm(_service, _settings);
+            _settingsForm = new SettingsForm(_service, _settings, OnRegisterHotkeys);
             _settingsForm.FormClosed += (_, _) => _settingsForm = null;
             _settingsForm.Show();
         }
 
-        /// <summary>
-        /// 管理者権限に昇格して自分自身を再起動する。
-        /// </summary>
         private void RestartAsAdmin()
         {
             try
@@ -243,20 +300,18 @@ namespace SimHubDS339
                     UseShellExecute = true,
                 };
 
-                // コマンドライン引数を引き継ぐ
                 var args = Environment.GetCommandLineArgs().Skip(1);
                 psi.Arguments = string.Join(" ", args.Select(a => $"\"{a}\""));
 
                 var proc = Process.Start(psi);
                 if (proc != null)
                 {
-                    // 昇格プロセスが起動したため、現行プロセスを終了する
                     ExitApplication();
                 }
             }
             catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
             {
-                // ERROR_CANCELLED: ユーザーが UAC ダイアログをキャンセルした場合は何もしない
+                // ERROR_CANCELLED: ユーザーが UAC をキャンセルした場合は何もしない
             }
             catch (Exception ex)
             {
@@ -264,9 +319,6 @@ namespace SimHubDS339
             }
         }
 
-        /// <summary>
-        /// アプリケーションを終了し、常駐サービスやアイコンリソースをクリーンアップする。
-        /// </summary>
         private void ExitApplication()
         {
             if (_isExiting) return;
@@ -277,6 +329,9 @@ namespace SimHubDS339
 
             _updateTimer.Stop();
             _updateTimer.Dispose();
+
+            // ホットキーの解放
+            _hotkeyManager.Dispose();
 
             // サービスの停止
             _service.Stop();

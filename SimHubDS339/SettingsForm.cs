@@ -1,33 +1,54 @@
+using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace SimHubDS339
 {
     /// <summary>
-    /// アプリケーション設定（自動起動、FPS、SimHub 接続先）を変更するための設定ウィンドウ。
+    /// アプリケーション設定（自動起動、FPS、SimHub 接続先、ページ設定、ホットキー）を変更するための設定ウィンドウ。
     /// </summary>
     internal sealed class SettingsForm : Form
     {
         private readonly DashboardService _service;
         private readonly AppSettings _settings;
+        private readonly Func<HotkeyBinding, HotkeyBinding, string?>? _onRegisterHotkeys;
         private AutoStartMode _initialAutoStartMode;
 
-        // コントロール
+        // コントロール - 起動
         private readonly RadioButton _rbAutoNone;
         private readonly RadioButton _rbAutoUser;
         private readonly RadioButton _rbAutoAdmin;
+
+        // コントロール - 表示
         private readonly NumericUpDown _numFps;
+
+        // コントロール - SimHub
         private readonly TextBox _txtHost;
         private readonly NumericUpDown _numPort;
         private readonly Button _btnResetSimHub;
+
+        // コントロール - レース画面ページ
+        private readonly CheckBox _chkMain;
+        private readonly CheckBox _chkTyres;
+        private readonly CheckBox _chkFuel;
+        private readonly CheckBox _chkDelta;
+        private readonly CheckBox _chkSession;
+        private readonly TextBox _txtNextHotkey;
+        private readonly TextBox _txtPrevHotkey;
+        private readonly Button _btnResetHotkeys;
+
+        // コントロール - 下部
         private readonly Label _lblPrivilege;
         private readonly Button _btnOk;
         private readonly Button _btnCancel;
 
-        public SettingsForm(DashboardService service, AppSettings settings)
+        public SettingsForm(DashboardService service, AppSettings settings, Func<HotkeyBinding, HotkeyBinding, string?>? onRegisterHotkeys = null)
         {
             _service = service;
             _settings = settings;
+            _onRegisterHotkeys = onRegisterHotkeys;
 
             // 基本フォーム設定
             Text = "SimHubDS339 設定";
@@ -38,7 +59,7 @@ namespace SimHubDS339
             // 座標は 96 DPI 基準で書いているので、表示 DPI に合わせて拡大させる
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(500, 480);
+            ClientSize = new Size(500, 600);
             ShowInTaskbar = true;
 
             try
@@ -55,39 +76,38 @@ namespace SimHubDS339
             {
                 Text = "起動設定",
                 Location = new Point(16, 12),
-                Size = new Size(468, 160),
+                Size = new Size(468, 140),
             };
 
             _rbAutoNone = new RadioButton
             {
                 Text = "自動起動しない",
-                Location = new Point(16, 24),
+                Location = new Point(16, 22),
                 AutoSize = true,
             };
             _rbAutoUser = new RadioButton
             {
                 Text = "Windows 起動時に起動する",
-                Location = new Point(16, 48),
+                Location = new Point(16, 44),
                 AutoSize = true,
             };
             _rbAutoAdmin = new RadioButton
             {
                 Text = "Windows 起動時に管理者として起動する (CPU 温度を表示する場合)",
-                Location = new Point(16, 72),
+                Location = new Point(16, 66),
                 AutoSize = true,
             };
 
             var lblStartupNote = new Label
             {
                 Text = "※ 管理者として起動するにはタスク スケジューラに登録します。変更時に UAC の確認が表示されます。CPU 温度の取得には PawnIO ドライバも必要です。",
-                Location = new Point(16, 100),
-                Size = new Size(436, 50),
+                Location = new Point(16, 90),
+                Size = new Size(436, 42),
                 ForeColor = SystemColors.GrayText,
             };
 
             grpStartup.Controls.AddRange(new Control[] { _rbAutoNone, _rbAutoUser, _rbAutoAdmin, lblStartupNote });
 
-            // 現在の自動起動モードを取得して反映
             try
             {
                 _initialAutoStartMode = AutoStart.GetMode();
@@ -114,20 +134,20 @@ namespace SimHubDS339
             var grpDisplay = new GroupBox
             {
                 Text = "表示設定",
-                Location = new Point(16, 180),
-                Size = new Size(468, 65),
+                Location = new Point(16, 158),
+                Size = new Size(468, 58),
             };
 
             var lblFps = new Label
             {
                 Text = "送信レート (FPS):",
-                Location = new Point(16, 28),
+                Location = new Point(16, 24),
                 AutoSize = true,
             };
 
             _numFps = new NumericUpDown
             {
-                Location = new Point(130, 26),
+                Location = new Point(130, 22),
                 Size = new Size(70, 23),
                 Minimum = 1,
                 Maximum = 20,
@@ -137,7 +157,7 @@ namespace SimHubDS339
             var lblFpsNote = new Label
             {
                 Text = "(1 ～ 20 FPS、既定値: 10)",
-                Location = new Point(210, 28),
+                Location = new Point(210, 24),
                 AutoSize = true,
                 ForeColor = SystemColors.GrayText,
             };
@@ -148,20 +168,20 @@ namespace SimHubDS339
             var grpSimHub = new GroupBox
             {
                 Text = "SimHub 接続設定 (Property Server)",
-                Location = new Point(16, 253),
-                Size = new Size(468, 110),
+                Location = new Point(16, 222),
+                Size = new Size(468, 96),
             };
 
             var lblHost = new Label
             {
                 Text = "ホスト名 / IP:",
-                Location = new Point(16, 28),
+                Location = new Point(16, 24),
                 AutoSize = true,
             };
 
             _txtHost = new TextBox
             {
-                Location = new Point(130, 25),
+                Location = new Point(130, 21),
                 Size = new Size(180, 23),
                 Text = _settings.SimHubHost,
             };
@@ -169,13 +189,13 @@ namespace SimHubDS339
             var lblPort = new Label
             {
                 Text = "ポート番号:",
-                Location = new Point(16, 62),
+                Location = new Point(16, 56),
                 AutoSize = true,
             };
 
             _numPort = new NumericUpDown
             {
-                Location = new Point(130, 59),
+                Location = new Point(130, 53),
                 Size = new Size(90, 23),
                 Minimum = 1,
                 Maximum = 65535,
@@ -185,8 +205,8 @@ namespace SimHubDS339
             _btnResetSimHub = new Button
             {
                 Text = "既定値に戻す",
-                Location = new Point(340, 24),
-                Size = new Size(110, 27),
+                Location = new Point(340, 20),
+                Size = new Size(110, 26),
             };
             _btnResetSimHub.Click += (_, _) =>
             {
@@ -196,11 +216,134 @@ namespace SimHubDS339
 
             grpSimHub.Controls.AddRange(new Control[] { lblHost, _txtHost, lblPort, _numPort, _btnResetSimHub });
 
-            // === 4. 下部ステータスとボタン ===
+            // === 4. レース画面のページ設定グループ ===
+            var grpPages = new GroupBox
+            {
+                Text = "レース画面のページ設定",
+                Location = new Point(16, 324),
+                Size = new Size(468, 192),
+            };
+
+            var enabledPages = _settings.GetEnabledRacePages();
+
+            _chkMain = new CheckBox
+            {
+                Text = "MAIN",
+                Location = new Point(16, 24),
+                AutoSize = true,
+                Checked = true,
+                Enabled = false, // MAIN は常に有効
+            };
+            _chkTyres = new CheckBox
+            {
+                Text = "TYRES",
+                Location = new Point(96, 24),
+                AutoSize = true,
+                Checked = enabledPages.Contains(RacePage.Tyres),
+            };
+            _chkFuel = new CheckBox
+            {
+                Text = "FUEL",
+                Location = new Point(184, 24),
+                AutoSize = true,
+                Checked = enabledPages.Contains(RacePage.Fuel),
+            };
+            _chkDelta = new CheckBox
+            {
+                Text = "DELTA",
+                Location = new Point(266, 24),
+                AutoSize = true,
+                Checked = enabledPages.Contains(RacePage.Delta),
+            };
+            _chkSession = new CheckBox
+            {
+                Text = "SESSION",
+                Location = new Point(356, 24),
+                AutoSize = true,
+                Checked = enabledPages.Contains(RacePage.Session),
+            };
+
+            var lblNextHotkey = new Label
+            {
+                Text = "次のページ:",
+                Location = new Point(16, 58),
+                AutoSize = true,
+            };
+
+            _txtNextHotkey = new TextBox
+            {
+                Location = new Point(100, 55),
+                Size = new Size(230, 23),
+            };
+
+            var lblPrevHotkey = new Label
+            {
+                Text = "前のページ:",
+                Location = new Point(16, 92),
+                AutoSize = true,
+            };
+
+            _txtPrevHotkey = new TextBox
+            {
+                Location = new Point(100, 89),
+                Size = new Size(230, 23),
+            };
+
+            // ホットキー初期値設定とキャプチャ設定
+            if (!HotkeyBinding.TryParse(_settings.NextPageHotkey, out var initialNext))
+            {
+                HotkeyBinding.TryParse(HotkeyBinding.DefaultNext, out initialNext);
+            }
+            if (!HotkeyBinding.TryParse(_settings.PrevPageHotkey, out var initialPrev))
+            {
+                HotkeyBinding.TryParse(HotkeyBinding.DefaultPrev, out initialPrev);
+            }
+
+            SetupHotkeyTextBox(_txtNextHotkey, initialNext!);
+            SetupHotkeyTextBox(_txtPrevHotkey, initialPrev!);
+
+            _btnResetHotkeys = new Button
+            {
+                Text = "既定値に戻す",
+                Location = new Point(344, 55),
+                Size = new Size(110, 57),
+            };
+            _btnResetHotkeys.Click += (_, _) =>
+            {
+                if (HotkeyBinding.TryParse(HotkeyBinding.DefaultNext, out var defNext))
+                {
+                    _txtNextHotkey.Text = defNext.ToString();
+                    _txtNextHotkey.Tag = defNext;
+                }
+                if (HotkeyBinding.TryParse(HotkeyBinding.DefaultPrev, out var defPrev))
+                {
+                    _txtPrevHotkey.Text = defPrev.ToString();
+                    _txtPrevHotkey.Tag = defPrev;
+                }
+            };
+
+            var lblHotkeyNote = new Label
+            {
+                Text = "※ 入力欄を選択し、キーを押すと自動入力されます (Ctrl / Alt / Shift いずれかの修飾キー必須)。",
+                Location = new Point(16, 126),
+                Size = new Size(436, 54),
+                ForeColor = SystemColors.GrayText,
+            };
+
+            grpPages.Controls.AddRange(new Control[]
+            {
+                _chkMain, _chkTyres, _chkFuel, _chkDelta, _chkSession,
+                lblNextHotkey, _txtNextHotkey,
+                lblPrevHotkey, _txtPrevHotkey,
+                _btnResetHotkeys,
+                lblHotkeyNote
+            });
+
+            // === 5. 下部ステータスとボタン ===
             _lblPrivilege = new Label
             {
                 Text = $"現在の権限: {(PcStatsSampler.IsElevated ? "管理者" : "通常")}",
-                Location = new Point(16, 380),
+                Location = new Point(16, 526),
                 AutoSize = true,
                 Font = new Font(Font, FontStyle.Bold),
             };
@@ -208,7 +351,7 @@ namespace SimHubDS339
             _btnOk = new Button
             {
                 Text = "OK",
-                Location = new Point(286, 420),
+                Location = new Point(286, 554),
                 Size = new Size(92, 32),
             };
             _btnOk.Click += OnOkClicked;
@@ -216,7 +359,7 @@ namespace SimHubDS339
             _btnCancel = new Button
             {
                 Text = "キャンセル",
-                Location = new Point(392, 420),
+                Location = new Point(392, 554),
                 Size = new Size(92, 32),
             };
             _btnCancel.Click += (_, _) =>
@@ -228,7 +371,46 @@ namespace SimHubDS339
             AcceptButton = _btnOk;
             CancelButton = _btnCancel;
 
-            Controls.AddRange(new Control[] { grpStartup, grpDisplay, grpSimHub, _lblPrivilege, _btnOk, _btnCancel });
+            Controls.AddRange(new Control[] { grpStartup, grpDisplay, grpSimHub, grpPages, _lblPrivilege, _btnOk, _btnCancel });
+        }
+
+        /// <summary>
+        /// ホットキー入力テキストボックスのキーボードイベントをフックして組み合わせをキャプチャする。
+        /// </summary>
+        private void SetupHotkeyTextBox(TextBox txt, HotkeyBinding initial)
+        {
+            txt.ReadOnly = true;
+            txt.BackColor = SystemColors.Window;
+            txt.Text = initial.ToString();
+            txt.Tag = initial;
+
+            txt.KeyDown += (s, e) =>
+            {
+                e.SuppressKeyPress = true;
+
+                // 単独の修飾キー押下 (ControlKey, ShiftKey, Menu など) は入力完了としない
+                if (e.KeyCode is Keys.ControlKey or Keys.ShiftKey or Keys.Menu or Keys.LWin or Keys.RWin)
+                {
+                    return;
+                }
+
+                // 修飾キーがない場合は拒否
+                if ((e.Modifiers & (Keys.Control | Keys.Alt | Keys.Shift)) == Keys.None)
+                {
+                    MessageBox.Show(this, "ホットキーには Ctrl、Alt、Shift のいずれかの修飾キーを含める必要があります (ゲーム操作の競合を防ぐため)。", "ホットキー設定エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var binding = new HotkeyBinding(e.Modifiers, e.KeyCode);
+                if (!binding.IsValid)
+                {
+                    MessageBox.Show(this, "無効なキーの組み合わせです。", "ホットキー設定エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                txt.Text = binding.ToString();
+                txt.Tag = binding;
+            };
         }
 
         /// <summary>
@@ -244,12 +426,48 @@ namespace SimHubDS339
                 return;
             }
 
-            // 選択された自動起動モード
+            // ホットキーの検証
+            var nextBinding = _txtNextHotkey.Tag as HotkeyBinding;
+            var prevBinding = _txtPrevHotkey.Tag as HotkeyBinding;
+
+            if (nextBinding == null || !nextBinding.IsValid)
+            {
+                MessageBox.Show(this, "「次のページ」のホットキーが無効です。", "入力エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _txtNextHotkey.Focus();
+                return;
+            }
+            if (prevBinding == null || !prevBinding.IsValid)
+            {
+                MessageBox.Show(this, "「前のページ」のホットキーが無効です。", "入力エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _txtPrevHotkey.Focus();
+                return;
+            }
+            if (nextBinding.Equals(prevBinding))
+            {
+                MessageBox.Show(this, "「次のページ」と「前のページ」に同じホットキーは設定できません。", "入力エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // ホットキー変更時の再登録
+            bool hotkeyChanged = (_settings.NextPageHotkey != nextBinding.ToString()) ||
+                                 (_settings.PrevPageHotkey != prevBinding.ToString());
+
+            if (hotkeyChanged && _onRegisterHotkeys != null)
+            {
+                string? err = _onRegisterHotkeys(nextBinding, prevBinding);
+                if (err != null)
+                {
+                    MessageBox.Show(this, err, "ホットキー登録エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    // ウィンドウは閉じない
+                    return;
+                }
+            }
+
+            // 自動起動設定の変更がある場合
             var selectedMode = _rbAutoAdmin.Checked ? AutoStartMode.Admin
                 : _rbAutoUser.Checked ? AutoStartMode.User
                 : AutoStartMode.None;
 
-            // 自動起動設定の変更がある場合
             if (selectedMode != _initialAutoStartMode)
             {
                 try
@@ -279,6 +497,19 @@ namespace SimHubDS339
             _settings.Fps = newFps;
             _settings.SimHubHost = host;
             _settings.SimHubPort = newPort;
+            _settings.NextPageHotkey = nextBinding.ToString();
+            _settings.PrevPageHotkey = prevBinding.ToString();
+
+            // 有効ページの更新
+            var enabled = new List<RacePage> { RacePage.Main };
+            if (_chkTyres.Checked) enabled.Add(RacePage.Tyres);
+            if (_chkFuel.Checked) enabled.Add(RacePage.Fuel);
+            if (_chkDelta.Checked) enabled.Add(RacePage.Delta);
+            if (_chkSession.Checked) enabled.Add(RacePage.Session);
+
+            _service.PageState.UpdateEnabledPages(enabled);
+            _settings.EnabledPages = enabled.Select(p => p.ToString()).ToList();
+            _settings.CurrentPage = _service.PageState.CurrentPage.ToString();
 
             try
             {

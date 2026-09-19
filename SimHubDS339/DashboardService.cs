@@ -26,6 +26,15 @@ namespace SimHubDS339
         /// <summary>現在実行中のゲーム名 (未接続・待機中は null または空)</summary>
         public string? GameName { get; private set; }
 
+        /// <summary>レース画面のページ切り替え状態管理</summary>
+        public PageState PageState { get; }
+
+        /// <summary>次の有効なレース画面ページに切り替える</summary>
+        public void NextPage() => PageState.Next();
+
+        /// <summary>前の有効なレース画面ページに切り替える</summary>
+        public void PreviousPage() => PageState.Previous();
+
         /// <summary>
         /// サービスを初期化する。
         /// </summary>
@@ -37,6 +46,20 @@ namespace SimHubDS339
             _settings = settings;
             _demo = demo;
             _statsSec = statsSec;
+
+            PageState = new PageState(_settings.GetCurrentRacePage(), _settings.GetEnabledRacePages());
+            PageState.PageChanged += page =>
+            {
+                _settings.CurrentPage = page.ToString();
+                try
+                {
+                    _settings.Save();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Settings] ページ設定の自動保存に失敗しました: {ex.Message}");
+                }
+            };
         }
 
         /// <summary>
@@ -107,6 +130,7 @@ namespace SimHubDS339
             {
                 Stop();
                 _settings = newSettings;
+                PageState.UpdateEnabledPages(_settings.GetEnabledRacePages());
                 Start();
             }
         }
@@ -133,6 +157,7 @@ namespace SimHubDS339
             using var pcStats = new PcStatsSampler();
             pcStats.Start();
 
+            var stintTracker = new StintTracker();
             using var renderer = new DashboardRenderer();
             using var link = new DisplayLink();
 
@@ -148,9 +173,9 @@ namespace SimHubDS339
                     long now = sw.ElapsedMilliseconds;
                     if (now >= nextFrame)
                     {
-                        var t = _demo ? Demo.Create() : Telemetry.From(adapter);
+                        var t = _demo ? Demo.Create() : Telemetry.From(adapter, stintTracker);
                         pcStats.Paused = t.SimHubConnected && t.GameRunning;
-                        var frame = renderer.Render(t, pcStats.Current);
+                        var frame = renderer.Render(t, pcStats.Current, PageState.CurrentPage, PageState.GetActiveOverlay(), PageState.EnabledPages);
                         if (link.TrySend(frame))
                         {
                             sent++;
