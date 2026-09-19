@@ -10,10 +10,19 @@ using SimHubDS339;
 //   SimHubDS339 --stats 60      統計ログの出力間隔 (秒, 既定 60)
 //   SimHubDS339 --demo          SimHub の代わりに擬似テレメトリでレース画面を表示 (動作確認用)
 //   SimHubDS339 --preview DIR   デバイスに触れず、サンプル値で描画した PNG を DIR に出力して終了
+//   SimHubDS339 --sensors       PC ステータス用に検出したセンサーを一覧表示して終了
+//
+// ゲーム未起動時 (SimHub 未接続を含む) は LibreHardwareMonitor で読んだ PC ステータスを表示する。
 
 if (args.Length >= 2 && args[0] == "--preview")
 {
     Preview.Run(args[1]);
+    return;
+}
+
+if (args.Contains("--sensors"))
+{
+    PcStatsSampler.Dump();
     return;
 }
 
@@ -40,6 +49,11 @@ using var client = new SimHubPropertyClient("127.0.0.1", 18082, Telemetry.Subscr
 var adapter = new SimHubPropertyClientAdapter(client);
 client.Start();
 
+if (!PcStatsSampler.IsElevated)
+    Console.WriteLine("[PC] not elevated: CPU temperature unavailable (needs administrator + PawnIO driver)");
+using var pcStats = new PcStatsSampler();
+pcStats.Start();
+
 using var renderer = new DashboardRenderer();
 using var link = new DisplayLink();
 
@@ -53,7 +67,9 @@ while (!cts.IsCancellationRequested)
     long now = sw.ElapsedMilliseconds;
     if (now >= nextFrame)
     {
-        var frame = renderer.Render(demo ? Demo.Create() : Telemetry.From(adapter));
+        var t = demo ? Demo.Create() : Telemetry.From(adapter);
+        pcStats.Paused = t.SimHubConnected && t.GameRunning;
+        var frame = renderer.Render(t, pcStats.Current);
         if (link.TrySend(frame)) sent++;
 
         nextFrame += periodMs;
@@ -62,7 +78,7 @@ while (!cts.IsCancellationRequested)
 
     if (now - lastStats >= statsSec * 1000L)
     {
-        Console.WriteLine($"{DateTime.Now:HH:mm:ss} [stats] frames sent in last {statsSec}s: {sent}, device={(link.IsConnected ? "connected" : "disconnected")}, simhub={(client.IsConnected ? "connected" : "disconnected")}");
+        Console.WriteLine($"{DateTime.Now:HH:mm:ss} [stats] frames sent in last {statsSec}s: {sent}, device={(link.IsConnected ? "connected" : "disconnected")}, simhub={(client.IsConnected ? "connected" : "disconnected")}, pcstats={(pcStats.Paused ? "paused" : "running")}");
         sent = 0;
         lastStats = now;
     }

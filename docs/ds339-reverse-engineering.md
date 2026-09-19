@@ -187,9 +187,9 @@ SimHub → Property Server (TCP:18082) → SimHubDS339
 
 ![レース画面](images/race_normal.png)
 ![シフト時](images/race_shift.png)
-![待機画面](images/idle_waiting.png)
+![PC ステータス画面](images/pc_waiting.png)
 
-- **待機画面**: 時計・日付・SimHub の接続状態
+- **PC ステータス画面** (ゲーム未起動時): 時計・SimHub の接続状態・CPU/GPU/メモリの使用率と温度・ネットワーク速度
 - **レース画面**: シフトライト、ギア、速度、RPM バー、ラップ/順位、現在・前回・ベストのラップタイム、スロットル/ブレーキ、燃料
 - 送信失敗・USB エラー・デバイス使用中のときは、3 秒ごとに自動で再接続
 - `--demo` で擬似データのレース画面、`--preview` でデバイスなしの PNG 出力

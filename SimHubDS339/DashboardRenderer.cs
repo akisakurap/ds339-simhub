@@ -43,14 +43,14 @@ namespace SimHubDS339
             _fontFamily = new[] { "Bahnschrift", "Segoe UI" }.FirstOrDefault(names.Contains) ?? FontFamily.GenericSansSerif.Name;
         }
 
-        public byte[] Render(Telemetry t)
+        public byte[] Render(Telemetry t, PcStats? pc = null)
         {
             _g.Clear(Background);
 
             if (t.SimHubConnected && t.GameRunning)
                 DrawRace(t);
             else
-                DrawIdle(t);
+                DrawPcStatus(t, pc);
 
             return ToRgb();
         }
@@ -158,29 +158,139 @@ namespace SimHubDS339
             return v.TotalHours >= 1 ? v.ToString(@"h\:mm\:ss") : $"{(int)v.TotalMinutes}:{v.Seconds:00}.{v.Milliseconds:000}";
         }
 
-        // ---- idle layout ----
+        // ---- PC status layout (ゲーム未起動時) ----
 
-        private void DrawIdle(Telemetry t)
+        private void DrawPcStatus(Telemetry t, PcStats? pc)
         {
             var now = DateTime.Now;
-            DrawCentered(now.ToString("HH:mm"), Font(150, FontStyle.Bold), TextColor, new RectangleF(0, 40, Width, 190));
-            DrawCentered(now.ToString("yyyy/MM/dd (ddd)", System.Globalization.CultureInfo.InvariantCulture), Font(28), Dim, new RectangleF(0, 226, Width, 44));
+            DrawText(now.ToString("HH:mm"), Font(46, FontStyle.Bold), TextColor, 12, 6);
+            DrawText(now.ToString("yyyy/MM/dd (ddd)", System.Globalization.CultureInfo.InvariantCulture), Font(20), Dim, 156, 26);
 
             string status;
             Color statusColor;
             if (!t.SimHubConnected)
             {
-                status = "SimHub: not connected (Property Server :18082)";
+                status = "SimHub: not connected";
                 statusColor = Warn;
             }
             else
             {
-                status = string.IsNullOrEmpty(t.GameName) ? "SimHub connected - waiting for game" : $"SimHub connected - waiting for {t.GameName}";
+                status = string.IsNullOrEmpty(t.GameName) ? "SimHub: waiting for game" : $"SimHub: waiting for {t.GameName}";
                 statusColor = Accent;
             }
-            var pill = new RectangleF(120, 294, Width - 240, 50);
-            FillRounded(pill, Panel, 25);
-            DrawCentered(status, Font(22), statusColor, pill);
+            var pill = new RectangleF(584, 14, 360, 42);
+            FillRounded(pill, Panel, 21);
+            DrawCentered(status, Font(19), statusColor, pill);
+
+            const float top = 70, h = 238, w = 300, gap = 14;
+            float x = 16;
+
+            string? clock = pc?.CpuClockMhz is { } mhz ? $"{mhz / 1000:0.0} GHz" : null;
+            DrawLoadPanel(new RectangleF(x, top, w, h), "CPU", null, pc?.CpuLoad, pc?.CpuTemp, clock, pc?.CpuHistory);
+            x += w + gap;
+
+            string? vram = pc?.VramUsedMb is { } vu && pc.VramTotalMb is { } vt && vt > 0 ? $"VRAM {vu / 1024:0.0}/{vt / 1024:0} GB" : null;
+            DrawLoadPanel(new RectangleF(x, top, w, h), "GPU", pc?.GpuName, pc?.GpuLoad, pc?.GpuTemp, vram, pc?.GpuHistory);
+            x += w + gap;
+
+            double? ramLoad = pc?.RamUsedGb is { } ru && pc.RamTotalGb is { } rt && rt > 0 ? ru / rt * 100 : null;
+            string? ramText = pc?.RamUsedGb is { } used && pc.RamTotalGb is { } total ? $"{used:0.0}/{total:0} GB" : null;
+            DrawLoadPanel(new RectangleF(x, top, w, h), "MEMORY", null, ramLoad, null, ramText, pc?.RamHistory);
+
+            // network
+            var net = new RectangleF(16, 320, 600, 42);
+            FillRounded(net, Panel, 8);
+            DrawText("NET", Font(16), Dim, net.X + 14, net.Y + 11);
+            DrawText("DOWN", Font(14), Dim, net.X + 90, net.Y + 13);
+            DrawText(FormatRate(pc?.NetDownBps), Font(22, FontStyle.Bold), TextColor, net.X + 138, net.Y + 7);
+            DrawText("UP", Font(14), Dim, net.X + 330, net.Y + 13);
+            DrawText(FormatRate(pc?.NetUpBps), Font(22, FontStyle.Bold), TextColor, net.X + 360, net.Y + 7);
+
+            if (pc != null && pc.CpuTemp == null)
+            {
+                var hint = new RectangleF(632, 320, 312, 42);
+                string text = PcStatsSampler.IsElevated ? "CPU temp: install PawnIO driver" : "CPU temp: admin + PawnIO required";
+                DrawCentered(text, Font(16), Dim, hint);
+            }
+        }
+
+        private void DrawLoadPanel(RectangleF r, string label, string? subLabel, double? load, double? temp, string? detail, IReadOnlyList<double>? history)
+        {
+            FillRounded(r, Panel);
+            DrawText(label, Font(18), Dim, r.X + 16, r.Y + 12);
+            if (subLabel != null)
+                DrawRight(subLabel, Font(14), Dim, new RectangleF(r.X + 90, r.Y + 12, r.Width - 106, 22));
+
+            // 使用率 (大) と温度 / 詳細
+            string loadText = load.HasValue ? $"{load.Value:0}" : "-";
+            var big = Font(72, FontStyle.Bold);
+            DrawText(loadText, big, TextColor, r.X + 8, r.Y + 34);
+            // GenericTypographic で測ると DrawString の左右余白を含まない実幅になる
+            float numW = _g.MeasureString(loadText, big, PointF.Empty, StringFormat.GenericTypographic).Width;
+            DrawText("%", Font(26, FontStyle.Bold), Dim, r.X + 22 + numW, r.Y + 76);
+
+            if (temp.HasValue || label != "MEMORY")
+            {
+                var tempColor = temp is >= 85 ? Danger : temp is >= 70 ? Warn : TextColor;
+                DrawRight(temp.HasValue ? $"{temp.Value:0}°C" : "-°C", Font(30, FontStyle.Bold), tempColor, new RectangleF(r.X, r.Y + 44, r.Width - 16, 40));
+                DrawRight(detail ?? "-", Font(17), Dim, new RectangleF(r.X, r.Y + 86, r.Width - 16, 26));
+            }
+            else
+            {
+                DrawRight(detail ?? "-", Font(24, FontStyle.Bold), TextColor, new RectangleF(r.X, r.Y + 50, r.Width - 16, 40));
+            }
+
+            // 直近 60 秒の推移
+            var spark = new RectangleF(r.X + 16, r.Y + 128, r.Width - 32, 62);
+            DrawSparkline(spark, history);
+
+            // 使用率バー
+            var bar = new RectangleF(r.X + 16, r.Bottom - 34, r.Width - 32, 16);
+            FillRounded(bar, Color.FromArgb(45, 50, 64), 5);
+            double ratio = Math.Clamp((load ?? 0) / 100.0, 0, 1);
+            var fill = new RectangleF(bar.X, bar.Y, (float)(bar.Width * ratio), bar.Height);
+            if (fill.Width > 1) FillRounded(fill, LoadColor(load ?? 0), 5);
+        }
+
+        private void DrawSparkline(RectangleF r, IReadOnlyList<double>? history)
+        {
+            using (var grid = new Pen(Color.FromArgb(40, 45, 58), 1))
+            {
+                _g.DrawLine(grid, r.X, r.Y, r.Right, r.Y);
+                _g.DrawLine(grid, r.X, r.Y + r.Height / 2, r.Right, r.Y + r.Height / 2);
+                _g.DrawLine(grid, r.X, r.Bottom, r.Right, r.Bottom);
+            }
+            if (history == null || history.Count < 2) return;
+
+            // 右端を最新として、1 サンプル = 幅 / (HistoryLength - 1)
+            float step = r.Width / (PcStats.HistoryLength - 1);
+            var points = new PointF[history.Count];
+            for (int i = 0; i < history.Count; i++)
+            {
+                float px = r.Right - (history.Count - 1 - i) * step;
+                float py = r.Bottom - (float)(Math.Clamp(history[i], 0, 100) / 100.0) * r.Height;
+                points[i] = new PointF(px, py);
+            }
+
+            using var area = new GraphicsPath();
+            area.AddLines(points);
+            area.AddLine(points[^1], new PointF(points[^1].X, r.Bottom));
+            area.AddLine(new PointF(points[^1].X, r.Bottom), new PointF(points[0].X, r.Bottom));
+            area.CloseFigure();
+            using (var brush = new SolidBrush(Color.FromArgb(50, Accent)))
+                _g.FillPath(brush, area);
+            using var pen = new Pen(Accent, 2) { LineJoin = LineJoin.Round };
+            _g.DrawLines(pen, points);
+        }
+
+        private static Color LoadColor(double load) => load >= 95 ? Danger : load >= 80 ? Warn : Accent;
+
+        private static string FormatRate(double? bps)
+        {
+            if (bps is not { } v) return "-";
+            if (v >= 1024 * 1024) return $"{v / (1024 * 1024):0.0} MB/s";
+            if (v >= 1024) return $"{v / 1024:0} KB/s";
+            return $"{v:0} B/s";
         }
 
         // ---- helpers ----

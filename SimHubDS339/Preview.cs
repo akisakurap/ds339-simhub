@@ -8,10 +8,15 @@ namespace SimHubDS339
             Directory.CreateDirectory(outDir);
             using var renderer = new DashboardRenderer();
 
-            var samples = new (string Name, Telemetry T)[]
+            var pc = SamplePc();
+            var noTemp = SamplePc(cpuTemp: null);
+
+            var samples = new (string Name, Telemetry T, PcStats? Pc)[]
             {
-                ("idle_disconnected", new Telemetry { SimHubConnected = false }),
-                ("idle_waiting", new Telemetry { SimHubConnected = true, GameName = "FH6" }),
+                ("pc_disconnected", new Telemetry { SimHubConnected = false }, pc),
+                ("pc_waiting", new Telemetry { SimHubConnected = true, GameName = "FH6" }, pc),
+                ("pc_notemp", new Telemetry { SimHubConnected = true }, noTemp),
+                ("pc_nodata", new Telemetry { SimHubConnected = false }, null),
                 ("race_normal", new Telemetry
                 {
                     SimHubConnected = true, GameRunning = true, GameName = "FH6",
@@ -19,23 +24,39 @@ namespace SimHubDS339
                     Throttle = 0.82, Brake = 0.0, CurrentLap = 3, TotalLaps = 10, Position = 2, OpponentsCount = 12,
                     CurrentLapTime = TimeSpan.FromSeconds(51.234), LastLapTime = TimeSpan.FromSeconds(92.871),
                     BestLapTime = TimeSpan.FromSeconds(91.502), FuelPercent = 64,
-                }),
+                }, null),
                 ("race_shift", new Telemetry
                 {
                     SimHubConnected = true, GameRunning = true,
                     SpeedKmh = 243, Rpm = 8210, MaxRpm = 8500, RedlineRpm = 8000, Gear = "N",
                     Throttle = 1.0, Brake = 0.35, CurrentLap = 12, Position = 11, OpponentsCount = 24,
                     FuelPercent = 7,
-                }),
+                }, null),
             };
 
-            foreach (var (name, t) in samples)
+            foreach (var (name, t, stats) in samples)
             {
-                renderer.Render(t);
+                renderer.Render(t, stats);
                 var path = Path.Combine(outDir, name + ".png");
                 renderer.SavePng(path);
                 Console.WriteLine(path);
             }
+        }
+
+        private static PcStats SamplePc(double? cpuTemp = 52)
+        {
+            // それらしい 60 秒分の推移
+            double[] Wave(double baseLoad, double amp, double freq) =>
+                Enumerable.Range(0, PcStats.HistoryLength).Select(i => Math.Clamp(baseLoad + amp * Math.Sin(i * freq) + (i % 7 == 0 ? amp : 0), 0, 100)).ToArray();
+
+            return new PcStats
+            {
+                CpuLoad = 23, CpuTemp = cpuTemp, CpuClockMhz = 5600,
+                GpuName = "AMD Radeon RX 9070 XT", GpuLoad = 8, GpuTemp = 41, VramUsedMb = 2150, VramTotalMb = 16304,
+                RamUsedGb = 18.4, RamTotalGb = 31.8,
+                NetDownBps = 1.2 * 1024 * 1024, NetUpBps = 85 * 1024,
+                CpuHistory = Wave(20, 10, 0.4), GpuHistory = Wave(8, 5, 0.25), RamHistory = Wave(58, 0.5, 0.1),
+            };
         }
     }
 
