@@ -38,6 +38,9 @@ namespace SimHubDS339
         private readonly System.Windows.Forms.Timer _updateTimer;
 
         private readonly HotkeyManager _hotkeyManager;
+        private readonly JoystickMonitor _joystick;
+        private JoyBinding? _nextPageJoy;
+        private JoyBinding? _prevPageJoy;
         private IntPtr _hIcon = IntPtr.Zero;
         private SettingsForm? _settingsForm;
         private bool _isExiting;
@@ -52,6 +55,11 @@ namespace SimHubDS339
             _hotkeyManager = new HotkeyManager();
             _hotkeyManager.NextPageTriggered += () => _service.NextPage();
             _hotkeyManager.PrevPageTriggered += () => _service.PreviousPage();
+
+            // コントローラー (ホイール等) のボタン監視
+            _joystick = new JoystickMonitor();
+            _joystick.InputPressed += OnJoystickInput;
+            ReloadJoystickBindings();
 
             // コンテキストメニューの構築
             _contextMenu = new ContextMenuStrip();
@@ -127,6 +135,9 @@ namespace SimHubDS339
             // ホットキーの登録
             RegisterHotkeysFromSettings();
 
+            // コントローラーの監視開始
+            _joystick.Start();
+
             // 状態更新タイマー (2 秒間隔)
             _updateTimer = new System.Windows.Forms.Timer { Interval = 2000 };
             _updateTimer.Tick += (_, _) => UpdateStatus();
@@ -138,6 +149,30 @@ namespace SimHubDS339
             // OS のログオフ・シャットダウン時の終了ハンドラ登録
             SystemEvents.SessionEnding += OnSessionEnding;
             Application.ApplicationExit += OnApplicationExit;
+        }
+
+        /// <summary>
+        /// 設定からコントローラーのボタン割り当てを読み込む (未割当・不正な値は null)。
+        /// </summary>
+        private void ReloadJoystickBindings()
+        {
+            _nextPageJoy = _settings.GetNextPageJoyBinding();
+            _prevPageJoy = _settings.GetPrevPageJoyBinding();
+        }
+
+        /// <summary>
+        /// コントローラーのボタンが押されたとき、割り当て済みならページを切り替える。
+        /// </summary>
+        private void OnJoystickInput(JoyBinding pressed)
+        {
+            if (_nextPageJoy != null && _nextPageJoy.Equals(pressed))
+            {
+                _service.NextPage();
+            }
+            else if (_prevPageJoy != null && _prevPageJoy.Equals(pressed))
+            {
+                _service.PreviousPage();
+            }
         }
 
         /// <summary>
@@ -332,6 +367,9 @@ namespace SimHubDS339
 
             // ホットキーの解放
             _hotkeyManager.Dispose();
+
+            // コントローラー監視の停止
+            _joystick.Dispose();
 
             // サービスの停止
             _service.Stop();
