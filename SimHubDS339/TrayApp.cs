@@ -165,6 +165,12 @@ namespace SimHubDS339
         /// </summary>
         private void OnJoystickInput(JoyBinding pressed)
         {
+            // 設定画面で「検出」の待機中は、そのボタンでページを切り替えない
+            if (_settingsForm is { IsDisposed: false, IsCapturingJoystick: true })
+            {
+                return;
+            }
+
             if (_nextPageJoy != null && _nextPageJoy.Equals(pressed))
             {
                 _service.NextPage();
@@ -318,7 +324,7 @@ namespace SimHubDS339
                 return;
             }
 
-            _settingsForm = new SettingsForm(_service, _settings, OnRegisterHotkeys);
+            _settingsForm = new SettingsForm(_service, _settings, _joystick, OnRegisterHotkeys, ReloadJoystickBindings);
             _settingsForm.FormClosed += (_, _) => _settingsForm = null;
             _settingsForm.Show();
         }

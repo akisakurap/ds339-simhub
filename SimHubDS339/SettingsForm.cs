@@ -14,6 +14,8 @@ namespace SimHubDS339
         private readonly DashboardService _service;
         private readonly AppSettings _settings;
         private readonly Func<HotkeyBinding, HotkeyBinding, string?>? _onRegisterHotkeys;
+        private readonly JoystickMonitor _joystick;
+        private readonly Action? _onSettingsApplied;
         private AutoStartMode _initialAutoStartMode;
 
         // コントロール - 起動
@@ -38,17 +40,26 @@ namespace SimHubDS339
         private readonly TextBox _txtNextHotkey;
         private readonly TextBox _txtPrevHotkey;
         private readonly Button _btnResetHotkeys;
+        private readonly JoyBindingEditor _joyNext;
+        private readonly JoyBindingEditor _joyPrev;
 
         // コントロール - 下部
         private readonly Label _lblPrivilege;
         private readonly Button _btnOk;
         private readonly Button _btnCancel;
 
-        public SettingsForm(DashboardService service, AppSettings settings, Func<HotkeyBinding, HotkeyBinding, string?>? onRegisterHotkeys = null)
+        public SettingsForm(
+            DashboardService service,
+            AppSettings settings,
+            JoystickMonitor joystick,
+            Func<HotkeyBinding, HotkeyBinding, string?>? onRegisterHotkeys = null,
+            Action? onSettingsApplied = null)
         {
             _service = service;
             _settings = settings;
+            _joystick = joystick;
             _onRegisterHotkeys = onRegisterHotkeys;
+            _onSettingsApplied = onSettingsApplied;
 
             // 基本フォーム設定
             Text = "SimHubDS339 設定";
@@ -59,7 +70,7 @@ namespace SimHubDS339
             // 座標は 96 DPI 基準で書いているので、表示 DPI に合わせて拡大させる
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
-            ClientSize = new Size(500, 600);
+            ClientSize = new Size(500, 646);
             ShowInTaskbar = true;
 
             try
@@ -221,7 +232,7 @@ namespace SimHubDS339
             {
                 Text = "レース画面のページ設定",
                 Location = new Point(16, 324),
-                Size = new Size(468, 192),
+                Size = new Size(468, 244),
             };
 
             var enabledPages = _settings.GetEnabledRacePages();
@@ -265,29 +276,55 @@ namespace SimHubDS339
 
             var lblNextHotkey = new Label
             {
-                Text = "次のページ:",
-                Location = new Point(16, 58),
+                Text = "次 (キー):",
+                Location = new Point(16, 61),
                 AutoSize = true,
             };
 
             _txtNextHotkey = new TextBox
             {
-                Location = new Point(100, 55),
+                Location = new Point(100, 58),
                 Size = new Size(230, 23),
             };
 
+            var lblNextJoy = new Label
+            {
+                Text = "次 (ボタン):",
+                Location = new Point(16, 91),
+                AutoSize = true,
+            };
+
+            _joyNext = new JoyBindingEditor(_joystick)
+            {
+                Location = new Point(100, 86),
+            };
+            _joyNext.Value = _settings.GetNextPageJoyBinding();
+
             var lblPrevHotkey = new Label
             {
-                Text = "前のページ:",
-                Location = new Point(16, 92),
+                Text = "前 (キー):",
+                Location = new Point(16, 125),
                 AutoSize = true,
             };
 
             _txtPrevHotkey = new TextBox
             {
-                Location = new Point(100, 89),
+                Location = new Point(100, 122),
                 Size = new Size(230, 23),
             };
+
+            var lblPrevJoy = new Label
+            {
+                Text = "前 (ボタン):",
+                Location = new Point(16, 155),
+                AutoSize = true,
+            };
+
+            _joyPrev = new JoyBindingEditor(_joystick)
+            {
+                Location = new Point(100, 150),
+            };
+            _joyPrev.Value = _settings.GetPrevPageJoyBinding();
 
             // ホットキー初期値設定とキャプチャ設定
             if (!HotkeyBinding.TryParse(_settings.NextPageHotkey, out var initialNext))
@@ -304,9 +341,9 @@ namespace SimHubDS339
 
             _btnResetHotkeys = new Button
             {
-                Text = "既定値に戻す",
-                Location = new Point(344, 55),
-                Size = new Size(110, 57),
+                Text = "キーを既定値に戻す",
+                Location = new Point(344, 57),
+                Size = new Size(110, 25),
             };
             _btnResetHotkeys.Click += (_, _) =>
             {
@@ -324,9 +361,9 @@ namespace SimHubDS339
 
             var lblHotkeyNote = new Label
             {
-                Text = "※ 入力欄を選択し、キーを押すと自動入力されます (Ctrl / Alt / Shift いずれかの修飾キー必須)。",
-                Location = new Point(16, 126),
-                Size = new Size(436, 54),
+                Text = "※ キー: 入力欄を選んでキーを押すと入力されます (Ctrl / Alt / Shift のいずれかが必須。F13〜F24 は単独でも可)。\n※ ボタン: 「検出」を押してからコントローラーのボタンを押すと自動入力されます。",
+                Location = new Point(16, 184),
+                Size = new Size(436, 50),
                 ForeColor = SystemColors.GrayText,
             };
 
@@ -334,7 +371,9 @@ namespace SimHubDS339
             {
                 _chkMain, _chkTyres, _chkFuel, _chkDelta, _chkSession,
                 lblNextHotkey, _txtNextHotkey,
+                lblNextJoy, _joyNext,
                 lblPrevHotkey, _txtPrevHotkey,
+                lblPrevJoy, _joyPrev,
                 _btnResetHotkeys,
                 lblHotkeyNote
             });
@@ -343,7 +382,7 @@ namespace SimHubDS339
             _lblPrivilege = new Label
             {
                 Text = $"現在の権限: {(PcStatsSampler.IsElevated ? "管理者" : "通常")}",
-                Location = new Point(16, 526),
+                Location = new Point(16, 576),
                 AutoSize = true,
                 Font = new Font(Font, FontStyle.Bold),
             };
@@ -351,7 +390,7 @@ namespace SimHubDS339
             _btnOk = new Button
             {
                 Text = "OK",
-                Location = new Point(286, 554),
+                Location = new Point(286, 602),
                 Size = new Size(92, 32),
             };
             _btnOk.Click += OnOkClicked;
@@ -359,7 +398,7 @@ namespace SimHubDS339
             _btnCancel = new Button
             {
                 Text = "キャンセル",
-                Location = new Point(392, 554),
+                Location = new Point(392, 602),
                 Size = new Size(92, 32),
             };
             _btnCancel.Click += (_, _) =>
@@ -373,6 +412,11 @@ namespace SimHubDS339
 
             Controls.AddRange(new Control[] { grpStartup, grpDisplay, grpSimHub, grpPages, _lblPrivilege, _btnOk, _btnCancel });
         }
+
+        /// <summary>
+        /// コントローラーのボタン検出の待機中かどうか (待機中はそのボタンでページを切り替えない)。
+        /// </summary>
+        internal bool IsCapturingJoystick => _joyNext.IsCapturing || _joyPrev.IsCapturing;
 
         /// <summary>
         /// ホットキー入力テキストボックスのキーボードイベントをフックして組み合わせをキャプチャする。
@@ -394,10 +438,11 @@ namespace SimHubDS339
                     return;
                 }
 
-                // 修飾キーがない場合は拒否
-                if ((e.Modifiers & (Keys.Control | Keys.Alt | Keys.Shift)) == Keys.None)
+                // 修飾キーがない場合は、F13〜F24 の単独入力だけ許可する
+                bool hasModifier = (e.Modifiers & (Keys.Control | Keys.Alt | Keys.Shift)) != Keys.None;
+                if (!hasModifier && !HotkeyBinding.IsSingleKeyAllowed(e.KeyCode))
                 {
-                    MessageBox.Show(this, "ホットキーには Ctrl、Alt、Shift のいずれかの修飾キーを含める必要があります (ゲーム操作の競合を防ぐため)。", "ホットキー設定エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(this, "ホットキーには Ctrl、Alt、Shift のいずれかの修飾キーを含める必要があります (F13〜F24 は単独で使えます。ゲーム操作との競合を防ぐため)。", "ホットキー設定エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
@@ -445,6 +490,15 @@ namespace SimHubDS339
             if (nextBinding.Equals(prevBinding))
             {
                 MessageBox.Show(this, "「次のページ」と「前のページ」に同じホットキーは設定できません。", "入力エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // コントローラーのボタンの検証
+            var nextJoy = _joyNext.Value;
+            var prevJoy = _joyPrev.Value;
+            if (nextJoy != null && prevJoy != null && nextJoy.Equals(prevJoy))
+            {
+                MessageBox.Show(this, "「次のページ」と「前のページ」に同じボタンは設定できません。", "入力エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -499,6 +553,8 @@ namespace SimHubDS339
             _settings.SimHubPort = newPort;
             _settings.NextPageHotkey = nextBinding.ToString();
             _settings.PrevPageHotkey = prevBinding.ToString();
+            _settings.NextPageJoy = nextJoy?.ToString() ?? "";
+            _settings.PrevPageJoy = prevJoy?.ToString() ?? "";
 
             // 有効ページの更新
             var enabled = new List<RacePage> { RacePage.Main };
@@ -520,6 +576,8 @@ namespace SimHubDS339
                 MessageBox.Show(this, $"設定ファイルの保存に失敗しました:\n{ex.Message}", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
+
+            _onSettingsApplied?.Invoke();
 
             if (needRestart)
             {
