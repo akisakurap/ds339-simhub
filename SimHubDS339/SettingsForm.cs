@@ -62,7 +62,7 @@ namespace SimHubDS339
             _onSettingsApplied = onSettingsApplied;
 
             // 基本フォーム設定
-            Text = "SimHubDS339 設定";
+            Text = $"SimHubDS339 設定 v{AppInfo.VersionText}";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
