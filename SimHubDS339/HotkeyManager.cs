@@ -10,8 +10,12 @@ namespace SimHubDS339
     /// </summary>
     internal sealed class HotkeyBinding : IEquatable<HotkeyBinding>
     {
-        public const string DefaultNext = "Ctrl+Alt+Shift+PageDown";
-        public const string DefaultPrev = "Ctrl+Alt+Shift+PageUp";
+        public const string DefaultNext = "Ctrl+Alt+PageDown";
+        public const string DefaultPrev = "Ctrl+Alt+PageUp";
+
+        /// <summary>旧既定値 (4 キー同時押し)。設定ファイルの移行判定にだけ使う。</summary>
+        public const string LegacyDefaultNext = "Ctrl+Alt+Shift+PageDown";
+        public const string LegacyDefaultPrev = "Ctrl+Alt+Shift+PageUp";
 
         /// <summary>修飾キー (Keys.Control, Keys.Alt, Keys.Shift 等)</summary>
         public Keys Modifiers { get; }
@@ -31,18 +35,22 @@ namespace SimHubDS339
         }
 
         /// <summary>
-        /// 修飾キーが1つ以上含まれ、かつ単独キーが有効かどうか。
+        /// 主キーが指定され、かつ「修飾キーが 1 つ以上ある」または「F13〜F24 の単独キー」であるかどうか。
         /// </summary>
         public bool IsValid
         {
             get
             {
                 if (Key == Keys.None) return false;
-                // 修飾キー (Control, Alt, Shift) が少なくとも 1 つ必要
                 bool hasModifier = (Modifiers & (Keys.Control | Keys.Alt | Keys.Shift)) != Keys.None;
-                return hasModifier;
+                return hasModifier || IsSingleKeyAllowed(Key);
             }
         }
+
+        /// <summary>
+        /// 修飾キーなしで登録を許可するキーかどうか (F13〜F24 のみ。他のアプリやゲームと衝突しにくいため)。
+        /// </summary>
+        public static bool IsSingleKeyAllowed(Keys key) => key >= Keys.F13 && key <= Keys.F24;
 
         /// <summary>
         /// Win32 RegisterHotKey 用の修飾キーフラグを取得する。
@@ -88,7 +96,7 @@ namespace SimHubDS339
             if (string.IsNullOrWhiteSpace(text)) return false;
 
             var parts = text.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length < 2) return false;
+            if (parts.Length == 0) return false;
 
             Keys mods = Keys.None;
             Keys key = Keys.None;

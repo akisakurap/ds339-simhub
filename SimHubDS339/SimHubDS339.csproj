@@ -29,4 +29,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SimHubDS339.Tests" />
+  </ItemGroup>
+
 </Project>
